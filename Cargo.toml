@@ -12,4 +12,11 @@ path="src/main_interpreter.rs"
 [[bin]]
 name="ir"
 path="src/main_ir.rs"
+
+[[bin]]
+name = "brainfuck_jit"
+path = "src/main_jit.rs"
+
 [dependencies]
+dynasm = "2.0"
+dynasmrt = "2.0"

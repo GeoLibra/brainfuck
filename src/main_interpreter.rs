@@ -1,79 +1,72 @@
-mod opcode;
-use std::io::{Write, Read};
+use std::io::prelude::*;
 
-use opcode::{Opcode, Code};
+use brainfuck::opcode;
 
 struct Interpreter {
     stack: Vec<u8>,
 }
 
-impl Interpreter {
-    fn new()->Self{
-        Self {
-            stack: vec![0;1],
-        }
+impl std::default::Default for Interpreter {
+    fn default() -> Self {
+        Self { stack: vec![0; 1] }
     }
+}
 
-    fn run(&mut self, data: Vec<u8>) -> Result<(),Box<dyn std::error::Error>>{
-        let code = Code::from(data)?;
+impl Interpreter {
+    fn run(&mut self, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+        let code = opcode::Code::from(data)?;
         let code_len = code.instrs.len();
-        let mut pc: usize = 0; // Program Counter
-        let mut sp =0; // Stack Pointer
-
+        let mut pc = 0;
+        let mut ps = 0;
         loop {
             if pc >= code_len {
                 break;
             }
             match code.instrs[pc] {
-                Opcode::SHR => {
-                    sp += 1;
-                    if sp == self.stack.len(){
-                        self.stack.push(0);
+                opcode::Opcode::SHL => ps = if ps == 0 { 0 } else { ps - 1 },
+                opcode::Opcode::SHR => {
+                    ps += 1;
+                    if ps == self.stack.len() {
+                        self.stack.push(0)
                     }
-                },
-                Opcode::SHL => {
-                    if sp != 0{
-                        sp -= 1;
-                    }
-                },
-                Opcode::ADD => {
-                    self.stack[sp] = self.stack[sp].overflowing_add(1).0;
-                },
-                Opcode::SUB => {
-                    self.stack[sp] = self.stack[sp].overflowing_sub(1).0;
-                },
-                Opcode::PUTCHAR => {
-                    std::io::stdout().write_all(&[self.stack[sp]])?;
-                },
-                Opcode::GETCHAR => {
-                    let mut buf: Vec<u8> = vec![0;1];
+                }
+                opcode::Opcode::ADD => {
+                    self.stack[ps] = self.stack[ps].overflowing_add(1).0;
+                }
+                opcode::Opcode::SUB => {
+                    self.stack[ps] = self.stack[ps].overflowing_sub(1).0;
+                }
+                opcode::Opcode::PUTCHAR => {
+                    std::io::stdout().write_all(&[self.stack[ps]])?;
+                }
+                opcode::Opcode::GETCHAR => {
+                    let mut buf: Vec<u8> = vec![0; 1];
                     std::io::stdin().read_exact(&mut buf)?;
-                    self.stack[sp] = buf[0];
-                },
-                Opcode::LB => {
-                    if self.stack[sp] == 0x00 {
+                    self.stack[ps] = buf[0];
+                }
+                opcode::Opcode::LB => {
+                    if self.stack[ps] == 0x00 {
                         pc = code.jtable[&pc];
                     }
-                },
-                Opcode::RB => {
-                    if self.stack[sp] != 0x00 {
+                }
+                opcode::Opcode::RB => {
+                    if self.stack[ps] != 0x00 {
                         pc = code.jtable[&pc];
                     }
-                },
+                }
             }
             pc += 1;
         }
-
         Ok(())
     }
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    let data = std::fs::read(&args[1])?;
-    // let code = Code::from(data)?;
-    // println!("{:?}", code.instrs);
-
-    let mut interpreter = Interpreter::new();
-    let _ = interpreter.run(data);
-    Ok(())
+    assert!(args.len() >= 2);
+    let mut f = std::fs::File::open(&args[1])?;
+    let mut c: Vec<u8> = Vec::new();
+    f.read_to_end(&mut c)?;
+    let mut i = Interpreter::default();
+    i.run(c)
 }
